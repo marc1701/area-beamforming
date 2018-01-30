@@ -2,16 +2,16 @@ import numpy as np
 import scipy.special as sp
 
 # Eigenmike capsule angles from mh Acoustics documentation
-# elev_mics = (np.pi/180) * np.array([
+# elev_mics = np.radians(np.array([
 #                            69, 90, 111, 90, 32, 55, 90, 125, 148,
 #                            125, 90, 55, 21, 58, 121, 159, 69, 90,
 #                            111, 90, 32, 55, 90, 125, 148, 125, 90,
-#                            55, 21, 58, 122, 159]).reshape(1,-1)
-# azi_mics = (np.pi/180) * np.array([
+#                            55, 21, 58, 122, 159]).reshape(1,-1))
+# azi_mics = np.radians(np.array([
 #                           0, 32, 0, 328, 0, 45, 69, 45, 0, 315, 291,
 #                           315, 91, 90, 90, 89, 180, 212, 180, 148,
 #                           180, 225, 249, 225, 180, 135, 111, 135,
-#                           269, 270, 270, 271]).reshape(1,-1)
+#                           269, 270, 270, 271]).reshape(1,-1))
 #
 # Y_eigenmike = sph_harm_array(N, azi_mics, elev_mics)
 Y_eigenmike = np.loadtxt('Y_mics.dat').view(complex)
@@ -24,6 +24,34 @@ def sht( x ):
     p_SH_dom = (4*np.pi / Q) * Y_eigenmike.conj().T @ x.T
 
     return p_SH_dom
+
+
+def srp_fft( x, fs, N_fft=None ):
+    # calculate fft for use in SRP algorithm
+    # zeros noise-dominated lower bands in higher-order SH channels
+    # removes bands above spatial nyquist (8 kHz for Eigenmike)
+
+    p_nm_k = np.fft.fft(x, axis=1, n=N_fft)
+
+    if not N_fft:
+        N_fft = p_nm_k.shape[1]
+
+    f_vals = np.linspace(0, fs/2, N_fft//2)
+    k_vals = f_to_k(f_vals)
+
+    cutoff_2nd = np.searchsorted(f_vals, [400])[0]
+    cutoff_3rd = np.searchsorted(f_vals, [1000])[0]
+    cutoff_4th = np.searchsorted(f_vals, [1800])[0]
+    spatial_nyquist = np.searchsorted(f_vals, [8000])[0]
+
+    p_nm_k[4:9,:cutoff_2nd] = 0 # 2nd order channels below ~400 Hz = 0
+    p_nm_k[9:16,:cutoff_3rd] = 0 # 3rd order channels below ~1000 Hz = 0
+    p_nm_k[16:,:cutoff_4th] = 0 # 4th order channels below ~1800 Hz = 0
+    p_nm_k = p_nm_k[:, 1:spatial_nyquist]
+
+    k_vals = k_vals[1:spatial_nyquist]
+
+    return p_nm_k, k_vals
 
 
 def b( n, k, r, r_a=None ):
