@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.special as sp
+import spherical_sampling
 
 # Eigenmike capsule angles from mh Acoustics documentation
 # elev_mics = np.radians(np.array([
@@ -17,13 +18,13 @@ import scipy.special as sp
 Y_eigenmike = np.loadtxt('Y_mics.dat').view(complex)
 Q = 32 # number of mic capsules
 
-def sht( x ):
+def sht( x, N ):
     # calculates spherical harmonic transform of
-    # eigenmike space-domain signal x
+    # eigenmike space-domain signal x up to order N
 
-    p_SH_dom = (4*np.pi / Q) * Y_eigenmike.conj().T @ x.T
+    p_nm = (4*np.pi / Q) * Y_eigenmike[:, :(N+1)**2].conj().T @ x.T
 
-    return p_SH_dom
+    return p_nm
 
 
 def srp_fft( x, fs, N_fft=None ):
@@ -32,24 +33,32 @@ def srp_fft( x, fs, N_fft=None ):
     # removes bands above spatial nyquist (8 kHz for Eigenmike)
 
     p_nm_k = np.fft.fft(x, axis=1, n=N_fft)
+    # take FFT of incoming time-SH-domain frame
 
     if not N_fft:
         N_fft = p_nm_k.shape[1]
+        # infer FFT length if not specified
 
     f_vals = np.linspace(0, fs/2, N_fft//2)
     k_vals = f_to_k(f_vals)
+    # calculate frequency and wavenumber bin values
 
     cutoff_2nd = np.searchsorted(f_vals, [400])[0]
     cutoff_3rd = np.searchsorted(f_vals, [1000])[0]
     cutoff_4th = np.searchsorted(f_vals, [1800])[0]
     spatial_nyquist = np.searchsorted(f_vals, [8000])[0]
+    # find bins for low cutoff frequencies and spatial nyquist
+    # figures for these listed in Eigenmike documentation
 
-    p_nm_k[4:9,:cutoff_2nd] = 0 # 2nd order channels below ~400 Hz = 0
-    p_nm_k[9:16,:cutoff_3rd] = 0 # 3rd order channels below ~1000 Hz = 0
-    p_nm_k[16:,:cutoff_4th] = 0 # 4th order channels below ~1800 Hz = 0
+    p_nm_k[4:9,:cutoff_2nd] = 0
+    p_nm_k[9:16,:cutoff_3rd] = 0
+    p_nm_k[16:,:cutoff_4th] = 0
     p_nm_k = p_nm_k[:, 1:spatial_nyquist]
+    # zero frequency bands as calculated above and trim
+    # spatially-aliased high frequency bands
 
     k_vals = k_vals[1:spatial_nyquist]
+    # trim list of wavenumbers to match
 
     return p_nm_k, k_vals
 
