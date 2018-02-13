@@ -3,7 +3,7 @@ from utilities import cart_to_sph, normalise
 from scipy.spatial.distance import cdist
 
 
-def geodesic(n_interpolation, co_ords='cart'):
+def geodesic(n_interpolation, co_ords='sph'):
 
     # DEFINE INITIAL ICOSAHEDRON
     # using orthogonal rectangle method
@@ -95,3 +95,13 @@ def geodesic(n_interpolation, co_ords='cart'):
 
     elif co_ords == 'sph':
         return cart_to_sph(vertices)
+
+
+
+def uniform_random(npoints):
+    # random sampling, uniform distribution over spherical surface
+
+    azi = 2*np.pi * np.random.random(npoints)
+    elev = np.arccos(2*np.random.random(npoints) - 1)
+
+    return np.array([azi, elev]).T
