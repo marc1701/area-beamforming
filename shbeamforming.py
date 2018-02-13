@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.special as sp
 import spherical_sampling
+import utilities
 
 # Eigenmike capsule angles from mh Acoustics documentation
 # elev_mics = np.radians(np.array([
@@ -128,19 +129,3 @@ def sph_harm_array(N, azi, elev):
         Y_mn[:,i] = sp.sph_harm(m, n, azi, elev).reshape(1,-1)
 
     return np.array(Y_mn)
-
-
-def f_to_k( f, c=343 ):
-    # converts frequency in Hz to wavenumber
-
-    k = (f / (1/(2*np.pi)) / c)
-
-    return k
-
-
-def k_to_f( k, c=343 ):
-    # converts wavenumber to frequency in Hz
-
-    f = (k*c) * (1/(2*np.pi))
-
-    return f

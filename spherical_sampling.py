@@ -1,7 +1,9 @@
 import numpy as np
+from utilities import cart_to_sph, normalise
 from scipy.spatial.distance import cdist
 
-def geodesic(n_interpolation):
+
+def geodesic(n_interpolation, co_ords='cart'):
 
     # DEFINE INITIAL ICOSAHEDRON
     # using orthogonal rectangle method
@@ -88,9 +90,8 @@ def geodesic(n_interpolation):
     # move vertices to unit sphere
     vertices = normalise(vertices, axis=1)
 
-    return vertices
+    if co_ords == 'cart':
+        return vertices
 
-
-
-def normalise(x, axis=None):
-    return x / np.linalg.norm(x, axis=axis).reshape(-1,1)
+    elif co_ords == 'sph':
+        return cart_to_sph(vertices)
