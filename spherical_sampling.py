@@ -3,7 +3,7 @@ from utilities import cart_to_sph, normalise
 from scipy.spatial.distance import cdist
 
 
-def geodesic(n_interpolation, co_ords='sph'):
+def geodesic(n_interpolation, return_points='vertices', co_ords='sph'):
 
     # DEFINE INITIAL ICOSAHEDRON
     # using orthogonal rectangle method
@@ -26,8 +26,7 @@ def geodesic(n_interpolation, co_ords='sph'):
                          [-t,0,-1],
                          [-t,0,1]])
 
-
-    for i in range(n_interpolation):
+    for n in range(n_interpolation + 1):
         # CALCULATION OF SIDES
 
         # find euclidian distances between all points -
@@ -69,11 +68,35 @@ def geodesic(n_interpolation, co_ords='sph'):
         # output is a 1D list, so we need to reshape it
         faces_idx = faces_idx.reshape(-1,3)
 
-
-        # INTERPOLATE AND CALCULATE NEW VERTEX LOCATIONS
-
         # 3D matrix with xyz co-ordnates for vertices of all faces
         v = vertices[faces_idx]
+
+
+        # if n_interpolation has been reached, break off here
+        if n == n_interpolation:
+
+            # FIND MIDPOINTS OF EACH FACE
+            # this finds the dodecahedron-like relation to the
+            # icosahedron at different interpolation levels
+            facepoints = v.sum(axis=1)/3
+
+            if return_points == 'faces':
+                vertices = facepoints
+
+            elif return_points == 'both':
+                vertices = np.append(vertices, facepoints, axis=0)
+
+            # move vertices to unit sphere
+            vertices = normalise(vertices, axis=1)
+
+            if co_ords == 'cart':
+                return vertices
+
+            elif co_ords == 'sph':
+                return cart_to_sph(vertices)
+
+
+        # INTERPOLATE AND CALCULATE NEW VERTEX LOCATIONS
 
         # finding the midpoints all in one go
         midpoints = ((v + np.roll(v,1,axis=1)) / 2).reshape(-1,3)
@@ -87,21 +110,28 @@ def geodesic(n_interpolation, co_ords='sph'):
         # # remove duplicates and re-sort vertices
         vertices = vertices[np.sort(idx)]
 
-    # move vertices to unit sphere
-    vertices = normalise(vertices, axis=1)
-
-    if co_ords == 'cart':
-        return vertices
-
-    elif co_ords == 'sph':
-        return cart_to_sph(vertices)
 
 
-
-def uniform_random(npoints):
+def uniform_random(N):
     # random sampling, uniform distribution over spherical surface
 
-    azi = 2*np.pi * np.random.random(npoints)
-    elev = np.arccos(2*np.random.random(npoints) - 1)
+    azi = 2*np.pi * np.random.random(N)
+    elev = np.arccos(2*np.random.random(N) - 1)
 
     return np.array([azi, elev]).T
+
+
+
+def fibonacci(N):
+    # quasi-regular sampling using fibonacci spiral
+
+    # golden ratio
+    T = (1 + np.sqrt(5)) / 2
+
+    i = np.arange(N)
+
+    theta = 2*np.pi*i/T
+    # arccos as we use spherical co-ordinates rather than lat-lon
+    phi = np.arccos(2*i/N-1)
+
+    return np.array([theta,phi]).T
