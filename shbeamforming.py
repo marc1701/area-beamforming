@@ -1,21 +1,21 @@
 import numpy as np
 import scipy.special as sp
 import spherical_sampling
-import utilities
+from utilities import f_to_k
 
 # Eigenmike capsule angles from mh Acoustics documentation
-# elev_mics = np.radians(np.array([
+# phi_mics = np.radians(np.array([
 #                            69, 90, 111, 90, 32, 55, 90, 125, 148,
 #                            125, 90, 55, 21, 58, 121, 159, 69, 90,
 #                            111, 90, 32, 55, 90, 125, 148, 125, 90,
 #                            55, 21, 58, 122, 159]).reshape(1,-1))
-# azi_mics = np.radians(np.array([
+# theta_mics = np.radians(np.array([
 #                           0, 32, 0, 328, 0, 45, 69, 45, 0, 315, 291,
 #                           315, 91, 90, 90, 89, 180, 212, 180, 148,
 #                           180, 225, 249, 225, 180, 135, 111, 135,
 #                           269, 270, 270, 271]).reshape(1,-1))
 #
-# Y_eigenmike = sph_harm_array(N, azi_mics, elev_mics)
+# Y_eigenmike = sph_harm_array(N, theta_mics, phi_mics)
 Y_eigenmike = np.loadtxt('Y_mics.dat').view(complex)
 Q = 32 # number of mic capsules
 
@@ -112,11 +112,12 @@ def sph_hankel2(n, z, derivative=False):
     return h2
 
 
-def sph_harm_array(N, azi, elev):
+def sph_harm_array(N, theta, phi):
 
-    Q = np.max(elev.shape)*azi.shape[np.argmin(elev.shape)]
+    Q = len(theta)
+    # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
     # find number of angles
-    # if azi and elev vectors are same orientation, Q = length of each
+    # if theta and phi vectors are same orientation, Q = length of each
     # if different orientations (meshgrid) Q = product of lengths
 
     Y_mn = np.zeros([Q, (N+1)**2], dtype=complex)
@@ -126,6 +127,6 @@ def sph_harm_array(N, azi, elev):
         m = i - (n**2) - n
         # trick from ambiX paper
 
-        Y_mn[:,i] = sp.sph_harm(m, n, azi, elev).reshape(1,-1)
+        Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
 
     return np.array(Y_mn)

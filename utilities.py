@@ -1,14 +1,17 @@
 import numpy as np
 
-def cart_to_sph(cart_co_ords):
+def cart_to_sph(cart_co_ords, return_r=False):
 # transformation between co-ordinate systems
 
     x, y, z = cart_co_ords[:,0], cart_co_ords[:,1], cart_co_ords[:,2]
     r = np.linalg.norm(cart_co_ords, axis=1)
-    theta = np.arctan2(y,x)
+    theta = np.arctan2(y,x) + np.pi
     phi = np.arccos(z/r)
 
-    return np.array([r, theta, phi]).T
+    if return_r:
+        return np.array([r, theta, phi]).T
+    else:
+        return np.array([theta, phi]).T
 
 
 def sph_to_cart(sph_co_ords):

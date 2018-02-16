@@ -1,9 +1,28 @@
 import numpy as np
-from utilities import cart_to_sph, normalise
+from utilities import cart_to_sph, sph_to_cart, normalise
 from scipy.spatial.distance import cdist
 
+def regular(N, co_ords='sph'):
 
-def geodesic(n_interpolation, return_points='vertices', co_ords='sph'):
+    # find N for each dimension, resulting in smallest possible
+    # whole number of points above input N
+    N = np.ceil(np.sqrt(N))
+
+    # meshgrid of points
+    x, y = np.meshgrid(np.linspace(0, 2*np.pi, N), np.linspace(0, np.pi, N))
+
+    # reshape into a list of points
+    points = np.stack((x, y)).reshape(2,-1).T
+
+    if co_ords == 'cart':
+        return sph_to_cart(points)
+
+    elif co_ords == 'sph':
+        return np.array(points)
+
+
+
+def geodesic(N_interp, return_points='vertices', co_ords='sph'):
 
     # DEFINE INITIAL ICOSAHEDRON
     # using orthogonal rectangle method
@@ -26,7 +45,7 @@ def geodesic(n_interpolation, return_points='vertices', co_ords='sph'):
                          [-t,0,-1],
                          [-t,0,1]])
 
-    for n in range(n_interpolation + 1):
+    for n in range(N_interp + 1):
         # CALCULATION OF SIDES
 
         # find euclidian distances between all points -
@@ -72,8 +91,8 @@ def geodesic(n_interpolation, return_points='vertices', co_ords='sph'):
         v = vertices[faces_idx]
 
 
-        # if n_interpolation has been reached, break off here
-        if n == n_interpolation:
+        # if N_interp has been reached, break off here
+        if n == N_interp:
 
             # FIND MIDPOINTS OF EACH FACE
             # this finds the dodecahedron-like relation to the
@@ -112,17 +131,21 @@ def geodesic(n_interpolation, return_points='vertices', co_ords='sph'):
 
 
 
-def uniform_random(N):
+def random(N, co_ords='sph'):
     # random sampling, uniform distribution over spherical surface
 
-    azi = 2*np.pi * np.random.random(N)
-    elev = np.arccos(2*np.random.random(N) - 1)
+    theta = 2*np.pi * np.random.random(N)
+    phi = np.arccos(2*np.random.random(N) - 1)
 
-    return np.array([azi, elev]).T
+    if co_ords == 'cart':
+        return sph_to_cart(np.array([theta, phi]).T)
+
+    elif co_ords == 'sph':
+        return np.array([theta, phi]).T
 
 
 
-def fibonacci(N):
+def fibonacci(N, co_ords='sph'):
     # quasi-regular sampling using fibonacci spiral
 
     # golden ratio
@@ -134,4 +157,8 @@ def fibonacci(N):
     # arccos as we use spherical co-ordinates rather than lat-lon
     phi = np.arccos(2*i/N-1)
 
-    return np.array([theta,phi]).T
+    if co_ords == 'cart':
+        return sph_to_cart(np.array([theta, phi]).T)
+
+    elif co_ords == 'sph':
+        return np.array([theta, phi]).T % (2*np.pi)
