@@ -47,7 +47,7 @@ def srp_fft( x, fs, N_fft=None ):
     cutoff_2nd = np.searchsorted(f_vals, [400])[0]
     cutoff_3rd = np.searchsorted(f_vals, [1000])[0]
     cutoff_4th = np.searchsorted(f_vals, [1800])[0]
-    spatial_nyquist = np.searchsorted(f_vals, [8000])[0]
+    spatial_nyquist = np.searchsorted(f_vals, [8000])[0]+1
     # find bins for low cutoff frequencies and spatial nyquist
     # figures for these listed in Eigenmike documentation
 
@@ -114,12 +114,13 @@ def sph_hankel2(n, z, derivative=False):
 
 def sph_harm_array(N, theta, phi):
 
-    Q = len(theta)
     # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
     # find number of angles
-    # if theta and phi vectors are same orientation, Q = length of each
-    # if different orientations (meshgrid) Q = product of lengths
-
+    if type(theta) == float:
+        Q = 1
+    else:
+        Q = len(theta)
+    
     Y_mn = np.zeros([Q, (N+1)**2], dtype=complex)
 
     for i in range((N+1)**2):

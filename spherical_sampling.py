@@ -2,6 +2,9 @@ import numpy as np
 from utilities import cart_to_sph, sph_to_cart, normalise
 from scipy.spatial.distance import cdist
 
+# golden ratio
+R = (1 + np.sqrt(5)) / 2
+
 def regular(N, co_ords='sph'):
 
     # find N for each dimension, resulting in smallest possible
@@ -9,7 +12,9 @@ def regular(N, co_ords='sph'):
     N = np.ceil(np.sqrt(N))
 
     # meshgrid of points
-    x, y = np.meshgrid(np.linspace(0, 2*np.pi, N), np.linspace(0, np.pi, N))
+    x, y = np.meshgrid(np.linspace(0, 2*np.pi, N),#[:-1],
+                       np.linspace(0, np.pi, N))#[1:-1])
+    # [1:-1] avoids duplicate points at poles and wraparound
 
     # reshape into a list of points
     points = np.stack((x, y)).reshape(2,-1).T
@@ -21,29 +26,26 @@ def regular(N, co_ords='sph'):
         return np.array(points)
 
 
-
 def geodesic(N_interp, return_points='vertices', co_ords='sph'):
 
     # DEFINE INITIAL ICOSAHEDRON
     # using orthogonal rectangle method
     # http://sinestesia.co/blog/tutorials/python-icospheres/
 
-    t = (1 + np.sqrt(5)) / 2
+    vertices = np.array([[-1,R,0],
+                         [1,R,0],
+                         [-1,-R,0],
+                         [1,-R,0],
 
-    vertices = np.array([[-1,t,0],
-                         [1,t,0],
-                         [-1,-t,0],
-                         [1,-t,0],
+                         [0,-1,R],
+                         [0,1,R],
+                         [0,-1,-R],
+                         [0,1,-R],
 
-                         [0,-1,t],
-                         [0,1,t],
-                         [0,-1,-t],
-                         [0,1,-t],
-
-                         [t,0,-1],
-                         [t,0,1],
-                         [-t,0,-1],
-                         [-t,0,1]])
+                         [R,0,-1],
+                         [R,0,1],
+                         [-R,0,-1],
+                         [-R,0,1]])
 
     for n in range(N_interp + 1):
         # CALCULATION OF SIDES
@@ -130,7 +132,6 @@ def geodesic(N_interp, return_points='vertices', co_ords='sph'):
         vertices = vertices[np.sort(idx)]
 
 
-
 def random(N, co_ords='sph'):
     # random sampling, uniform distribution over spherical surface
 
@@ -144,18 +145,14 @@ def random(N, co_ords='sph'):
         return np.array([theta, phi]).T
 
 
-
 def fibonacci(N, co_ords='sph'):
     # quasi-regular sampling using fibonacci spiral
 
-    # golden ratio
-    T = (1 + np.sqrt(5)) / 2
-
     i = np.arange(N)
 
-    theta = 2*np.pi*i/T
+    theta = 2*np.pi*i/R
     # arccos as we use spherical co-ordinates rather than lat-lon
-    phi = np.arccos(2*i/N-1)
+    phi = np.arccos(-(2*i/N-1))
 
     if co_ords == 'cart':
         return sph_to_cart(np.array([theta, phi]).T)

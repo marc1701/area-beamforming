@@ -35,7 +35,6 @@ def normalise(x, axis=None):
     return x / np.linalg.norm(x, axis=axis).reshape(-1,1)
 
 
-
 def f_to_k( f, c=343 ):
     # converts frequency in Hz to wavenumber
 
