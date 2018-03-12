@@ -81,21 +81,29 @@ def b( n, k, r, r_a=None ):
     return b
 
 
-def B_diag_matrix( N, k, r, r_a=None):
+def B_diag_matrix( N, k, r, beampattern='pwd', r_a=None):
     # makes diagonal matrix containing b(n,kr) coefficients
 
     b_array = np.array([b(n, k, r, r_a)
                 for n in range(N+1) for m in range(-n, n+1)])
 
-    B = np.diag(b_array)
+    if beampattern == 'pwd':
+        d = 1
+
+    elif beampattern == 'min_sidelobe':
+        d = np.array([d_minimum_sidelobe(N, n)
+                for n in range(N+1) for m in range(-n, n+1)])
+
+    # apply weights for selected beam pattern and diagonalify
+    B = np.diag(d/b_array)
 
     return B
 
 
-def B_3D( N, k, r, r_a=None ):
+def B_3D( N, k, r, beampattern='pwd', r_a=None ):
     # makes 3D matrix containing stack of b(n,kr) diagonals
 
-    B = np.array([B_diag_matrix(N, k, r, r_a) for k in k])
+    B = np.array([B_diag_matrix(N, k, r, beampattern, r_a) for k in k])
 
     return B
     # B = np.array([np.diag(
@@ -103,6 +111,14 @@ def B_3D( N, k, r, r_a=None ):
     #         for n in range(N+1) for m in range(-n, n+1)]))
     #     for k in k])
 
+
+def g0(N_sh):
+    return np.sqrt( (2*N_sh + 1) / (N_sh+1)**2 )
+
+def d_minimum_sidelobe(N_sh, n_sh):
+    # equation from Delikaris-Manias 2016
+    return (g0(N_sh) * (sp.gamma(N_sh+1) * sp.gamma(N_sh+2) /
+                        sp.gamma(N_sh+1+n_sh) * sp.gamma(N_sh+3+n_sh)))
 
 def sph_hankel2(n, z, derivative=False):
 
@@ -120,7 +136,7 @@ def sph_harm_array(N, theta, phi):
         Q = 1
     else:
         Q = len(theta)
-    
+
     Y_mn = np.zeros([Q, (N+1)**2], dtype=complex)
 
     for i in range((N+1)**2):
