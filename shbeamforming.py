@@ -1,7 +1,61 @@
 import numpy as np
 import scipy.special as sp
 import spherical_sampling
-from utilities import f_to_k
+from utilities import *
+
+def sph_harm_array(N, theta, phi, sh_type='complex'):
+
+    # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
+    # find number of angles
+    if type(theta) == float:
+        Q = 1
+    else:
+        Q = len(theta)
+
+    Y_mn = np.zeros([Q, (N+1)**2], dtype=complex)
+
+    for i in range((N+1)**2):
+
+        # trick from ambiX paper
+        n = np.floor(np.sqrt(i))
+        m = i - (n**2) - n
+
+        if sh_type == 'complex':
+            Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
+
+        elif sh_type == 'real':
+            # real SHs from complex (method in mh Acoustics datasheet)
+            if m < 0:
+                Y_mn[:,i] = ((2**(1/2)) * ((-1)**m) * np.imag(
+                                sp.sph_harm(m, n, theta, phi).reshape(1,-1)))
+            elif m > 0:
+                Y_mn[:,i] = ((2**(1/2)) * ((-1)**m) * np.real(
+                                sp.sph_harm(m, n, theta, phi).reshape(1,-1)))
+            else:
+                Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
+
+    return np.array(Y_mn)
+
+
+def g0(N_sh):
+    return np.sqrt( (2*N_sh + 1) / (N_sh+1)**2 )
+
+def d_minimum_sidelobe(N_sh, n_sh):
+    # equation from Delikaris-Manias 2016
+    return (g0(N_sh) * (sp.gamma(N_sh+1) * sp.gamma(N_sh+2) /
+                        sp.gamma(N_sh+1+n_sh) * sp.gamma(N_sh+3+n_sh)))
+
+
+#########################################################################
+### EVERYTHING BELOW THIS LINE NEEDED ONLY WHEN WORKING WITH
+### RAW EIGENMIKE AUDIO OUTPUT - (SEMI) DEPRECATED
+
+### non-optimal rigid sphere compensation (division) resulting in
+### amplification of microphone self-noise at low frequencies
+### in high-order channels
+
+### also requires use of unweildy 3D matrix for rigid sphere compensation
+### this could possibly be rectified with reformulation of SHT function
 
 # Eigenmike capsule angles from mh Acoustics documentation
 # phi_mics = np.radians(np.array([
@@ -109,16 +163,9 @@ def B_3D( N, k, r, beampattern='pwd', r_a=None ):
     # B = np.array([np.diag(
     #         np.array([b(n, k, 0.042)
     #         for n in range(N+1) for m in range(-n, n+1)]))
+
     #     for k in k])
 
-
-def g0(N_sh):
-    return np.sqrt( (2*N_sh + 1) / (N_sh+1)**2 )
-
-def d_minimum_sidelobe(N_sh, n_sh):
-    # equation from Delikaris-Manias 2016
-    return (g0(N_sh) * (sp.gamma(N_sh+1) * sp.gamma(N_sh+2) /
-                        sp.gamma(N_sh+1+n_sh) * sp.gamma(N_sh+3+n_sh)))
 
 def sph_hankel2(n, z, derivative=False):
 
@@ -126,24 +173,3 @@ def sph_hankel2(n, z, derivative=False):
           - 1j*sp.spherical_yn(n, z, derivative))
 
     return h2
-
-
-def sph_harm_array(N, theta, phi):
-
-    # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
-    # find number of angles
-    if type(theta) == float:
-        Q = 1
-    else:
-        Q = len(theta)
-
-    Y_mn = np.zeros([Q, (N+1)**2], dtype=complex)
-
-    for i in range((N+1)**2):
-        n = np.floor(np.sqrt(i))
-        m = i - (n**2) - n
-        # trick from ambiX paper
-
-        Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
-
-    return np.array(Y_mn)

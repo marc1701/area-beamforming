@@ -49,3 +49,8 @@ def k_to_f( k, c=343 ):
     f = (k*c) * (1/(2*np.pi))
 
     return f
+
+
+def rectify( x ):
+    return (np.abs(x) + x) / 2
+    
