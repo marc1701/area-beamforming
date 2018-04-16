@@ -3,7 +3,7 @@ import scipy.special as sp
 import spherical_sampling
 from utilities import *
 
-def sph_harm_array(N, theta, phi, sh_type='complex'):
+def sph_harm_array(N, theta, phi, sh_type='real'):
 
     # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
     # find number of angles
@@ -20,19 +20,10 @@ def sph_harm_array(N, theta, phi, sh_type='complex'):
         n = np.floor(np.sqrt(i))
         m = i - (n**2) - n
 
-        if sh_type == 'complex':
-            Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
+        Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
 
-        elif sh_type == 'real':
-            # real SHs from complex (method in mh Acoustics datasheet)
-            if m < 0:
-                Y_mn[:,i] = ((2**(1/2)) * ((-1)**m) * np.imag(
-                                sp.sph_harm(m, n, theta, phi).reshape(1,-1)))
-            elif m > 0:
-                Y_mn[:,i] = ((2**(1/2)) * ((-1)**m) * np.real(
-                                sp.sph_harm(m, n, theta, phi).reshape(1,-1)))
-            else:
-                Y_mn[:,i] = sp.sph_harm(m, n, theta, phi).reshape(1,-1)
+    if sh_type == 'real':
+        Y_mn = np.real((C(N) @ Y_mn.T).T)
 
     return np.array(Y_mn)
 
@@ -44,6 +35,97 @@ def d_minimum_sidelobe(N_sh, n_sh):
     # equation from Delikaris-Manias 2016
     return (g0(N_sh) * (sp.gamma(N_sh+1) * sp.gamma(N_sh+2) /
                         sp.gamma(N_sh+1+n_sh) * sp.gamma(N_sh+3+n_sh)))
+
+
+# rotations of spherical functions - equations from Rafaely2015 Chpt. 1.6
+# exponents of e here to positive rather than negative j
+# this matches with results from other formulations I have found
+# usually only using real part anyway
+def wgnr_D(n, m, mp, alpha, beta, gamma):
+    return np.e**(-1j*mp*alpha) * wgnr_d(n, m, mp, beta) * np.e**(-1j*m*gamma)
+
+
+def wgnr_d(n, m, mp, beta):
+
+    mu = np.abs(mp-m)
+    vu = np.abs(mp+m)
+    s = n-(mu+vu)/2
+
+    zeta = 1 if m >= mp else (-1)**int(m-mp)
+
+    return ( zeta *
+        np.sqrt( (factorial(s)*factorial(s+mu+vu)) /
+                  (factorial(s+mu)*factorial(s+vu)) ) *
+        np.sin(beta/2)**mu * np.cos(beta/2)**vu *
+        eval_jacobi(s, mu, vu, np.cos(beta)) )
+
+
+def wgnr_D_mat(N, alpha, beta, gamma):
+    D = OrderedDict()
+
+    for n in range(N+1):
+        indices = rotation_indices(n)
+        D[n] = np.array([wgnr_D(nmmp[0], nmmp[1], nmmp[2], alpha, beta, gamma)
+                   for nmmp in indices]).reshape(2*n+1,2*n+1)
+
+    return block_diag(*[n for _, n in D.items()])
+
+
+def rotation_indices(n):
+    return np.array([[n,m,mp] for n in range(n,n+1)
+    for m in range(-n, n+1) for mp in range(-n, n+1)])
+
+
+def C(N):
+
+    C = OrderedDict()
+
+    for n in range(N+1):
+        C[n] = c(n)
+
+    return block_diag(*[x for _, x in C.items()])
+
+
+def c(N): # complex/real transform matrix
+    indices = rotation_indices(N)
+
+    C = np.zeros((2*N+1)**2, dtype=complex)
+
+    for i, nmmp in enumerate(indices):
+        n, m, mp = nmmp[0], nmmp[1], nmmp[2]
+
+        if abs(m) != abs(mp):
+            C[i]  = 0
+        elif m - mp == 0: # same sign
+            if m == 0: # both 0
+                C[i] = np.sqrt(2)
+            elif m < 0: # both negative
+                C[i] = 1j
+            else: # both positive
+                C[i] = (int(-1)**int(m))
+        elif m - mp > 0: # mp negative
+            C[i] = 1
+        elif m - mp < 0: # mp positive
+            C[i] = -1j*(int(-1)**int(m))
+
+    C *= 1/(np.sqrt(2))
+
+    return C.reshape(2*N+1, 2*N+1)
+
+
+def delta(N, alpha, beta, gamma):
+    # real version of Wigner-D rotation matrix
+    D = wgnr_D_mat(N, alpha, beta, gamma)
+
+    return np.real(np.conj(C(N)) @ D @ C(N).T)
+
+
+def rotate_SH(beampattern, theta, phi, psi):
+    # rotates the Z axis to the direction specified
+    # helps if your beampattern begins facing straight up at 0, 0
+    # this essentially wraps wigner_D function in easier to understand terms
+    N = int(np.sqrt(len(beampattern)) - 1)
+    return delta(N, psi, -phi, theta) @ beampattern
 
 
 #########################################################################

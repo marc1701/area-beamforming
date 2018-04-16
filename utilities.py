@@ -1,4 +1,7 @@
 import numpy as np
+from collections import OrderedDict
+from scipy.linalg import block_diag
+from scipy.special import eval_jacobi, factorial
 
 def cart_to_sph(cart_co_ords, return_r=False):
 # transformation between co-ordinate systems
@@ -53,4 +56,3 @@ def k_to_f( k, c=343 ):
 
 def rectify( x ):
     return (np.abs(x) + x) / 2
-    
