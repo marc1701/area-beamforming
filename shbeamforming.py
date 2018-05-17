@@ -2,12 +2,42 @@ import numpy as np
 import scipy.special as sp
 import spherical_sampling
 from utilities import *
+import soundfile as sf
+import resampy
+
+
+def cropac_beams(N, theta, phi):
+
+    # set up initial beampatterns (single SH -> m = n)
+    pattern1 = np.zeros((1, (N+1)**2))
+    pattern2 = np.zeros((1, (N+1)**2))
+    pattern1[:,(N+1)**2-1] = 1
+    pattern2[:,(N)**2-1] = 1
+
+    # rotate so patterns point directly upward
+    pattern1 = rotate_SH(pattern1.T, 0, -np.pi/2, 0)
+    pattern2 = rotate_SH(pattern2.T, 0, -np.pi/2, 0)
+
+    # list of roll angles
+    rotations = [n*np.pi/N for n in range(N)]
+
+    # make arrays for all look directions and rotations
+    rot_patterns1 = np.array([
+                    rotate_SH(pattern1, theta, phi, psi)
+                    for psi in rotations])
+
+    rot_patterns2 = np.array([
+                    rotate_SH(pattern2, theta, phi, psi)
+                    for psi in rotations])
+
+    return rot_patterns1, rot_patterns2
+
 
 def sph_harm_array(N, theta, phi, sh_type='real'):
 
     # Q = np.max(phi.shape)*theta.shape[np.argmin(phi.shape)]
     # find number of angles
-    if type(theta) == float:
+    if isinstance(theta, float) or isinstance(theta, int):
         Q = 1
     else:
         Q = len(theta)
@@ -38,9 +68,6 @@ def d_minimum_sidelobe(N_sh, n_sh):
 
 
 # rotations of spherical functions - equations from Rafaely2015 Chpt. 1.6
-# exponents of e here to positive rather than negative j
-# this matches with results from other formulations I have found
-# usually only using real part anyway
 def wgnr_D(n, m, mp, alpha, beta, gamma):
     return np.e**(-1j*mp*alpha) * wgnr_d(n, m, mp, beta) * np.e**(-1j*m*gamma)
 
@@ -124,10 +151,73 @@ def rotate_SH(beampattern, theta, phi, psi):
     # rotates the Z axis to the direction specified
     # helps if your beampattern begins facing straight up at 0, 0
     # this essentially wraps wigner_D function in easier to understand terms
+
     N = int(np.sqrt(len(beampattern)) - 1)
-    return delta(N, psi, -phi, theta) @ beampattern
 
+    # single rotation direction specified
+    if isinstance(theta, float) or isinstance(theta, int):
+        return delta(N, psi, -phi, theta) @ beampattern
 
+    # list of directions specified, returns array
+    else:
+        SH_weights = np.zeros([len(theta), (N+1)**2])
+
+        for i in range(len(theta)):
+            SH_weights[i,:] = np.squeeze(
+                rotate_SH(beampattern, theta[i], phi[i], psi))
+
+        return SH_weights
+
+# def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
+#             sample_points=spherical_sampling.fibonacci(600)):
+#
+#     p_nm_t, fs_orig = sf.read(audio)
+#
+#     # remove channels for SH orders > N_sh
+#     p_nm_t = p_nm_t[:, :(N_sh+1)**2]
+#     p_nm_t = p_nm_t.T
+#
+#     if fs_orig != fs:
+#         # resample
+#         p_nm_t = resampy.resample(p_nm_t, fs_orig, fs)
+#
+#     N_frames = len(p_nm_t.T) // N_fft
+#
+#     theta_look, phi_look = sample_points[:,0], sample_points[:,1]
+#
+#     # get t-f representation of audio
+#     # rectangular windows, 0% overlap presently
+#     out_spec = np.array([np.fft.fft(p_nm_t[:,N_fft*i:N_fft*(i+1)])
+#                         [:,:N_fft//2].T for i in range(N_frames)])
+#     out_spec = np.moveaxis(out_spec, 0, 2)
+#
+#     # frequency band weighting (constant here)
+#     beta_zk = np.array([1]*(N_fft//2))
+#
+#     if beampattern == 'cropac':
+#         c1, c2 = cropac_beams(N_sh, theta_look, phi_look)
+#
+#         # cropac beams across t-f data
+#         cpc1 = (c1 @ np.expand_dims(out_spec, 1)).T
+#         cpc2 = (c2 @ np.expand_dims(out_spec, 1)).T
+#
+#         # calculate cross-pattern coherence & sum across frequencies
+#         power_map = rectify(np.real(np.conj(cpc1)*cpc2)) @ beta_zk
+#
+#         # multiplication of rotated versions for sidelobe cancellation
+#         power_map = (np.prod(power_map,2)**1).T
+#
+#     elif beampattern == 'pwd':
+#         pwd_pattern = sph_harm_array(N_sh, theta_look, phi_look)
+#
+#         # pwd across t-f data
+#         power_map = (pwd_pattern @ out_spec).T
+#
+#         # sum across frequency bands
+#         power_map = np.real(((rectify(pwd) @ beta_zk) ** 2)).T
+#
+#     return theta_look, phi_look, power_map
+#
 #########################################################################
 ### EVERYTHING BELOW THIS LINE NEEDED ONLY WHEN WORKING WITH
 ### RAW EIGENMIKE AUDIO OUTPUT - (SEMI) DEPRECATED
