@@ -8,7 +8,7 @@ def cart_to_sph(cart_co_ords, return_r=False):
 
     x, y, z = cart_co_ords[:,0], cart_co_ords[:,1], cart_co_ords[:,2]
     r = np.linalg.norm(cart_co_ords, axis=1)
-    theta = np.arctan2(y,x) + np.pi
+    theta = np.arctan2(y,x) % (2*np.pi)
     phi = np.arccos(z/r)
 
     if return_r:
