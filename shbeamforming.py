@@ -5,6 +5,10 @@ from utilities import *
 import soundfile as sf
 import resampy
 
+# spherical peak finding
+from dipy.core.sphere import Sphere
+from dipy.direction import peak_directions
+
 
 def cropac_beams(N, theta, phi):
 
@@ -168,56 +172,75 @@ def rotate_SH(beampattern, theta, phi, psi):
 
         return SH_weights
 
-# def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
-#             sample_points=spherical_sampling.fibonacci(600)):
-#
-#     p_nm_t, fs_orig = sf.read(audio)
-#
-#     # remove channels for SH orders > N_sh
-#     p_nm_t = p_nm_t[:, :(N_sh+1)**2]
-#     p_nm_t = p_nm_t.T
-#
-#     if fs_orig != fs:
-#         # resample
-#         p_nm_t = resampy.resample(p_nm_t, fs_orig, fs)
-#
-#     N_frames = len(p_nm_t.T) // N_fft
-#
-#     theta_look, phi_look = sample_points[:,0], sample_points[:,1]
-#
-#     # get t-f representation of audio
-#     # rectangular windows, 0% overlap presently
-#     out_spec = np.array([np.fft.fft(p_nm_t[:,N_fft*i:N_fft*(i+1)])
-#                         [:,:N_fft//2].T for i in range(N_frames)])
-#     out_spec = np.moveaxis(out_spec, 0, 2)
-#
-#     # frequency band weighting (constant here)
-#     beta_zk = np.array([1]*(N_fft//2))
-#
-#     if beampattern == 'cropac':
-#         c1, c2 = cropac_beams(N_sh, theta_look, phi_look)
-#
-#         # cropac beams across t-f data
-#         cpc1 = (c1 @ np.expand_dims(out_spec, 1)).T
-#         cpc2 = (c2 @ np.expand_dims(out_spec, 1)).T
-#
-#         # calculate cross-pattern coherence & sum across frequencies
-#         power_map = rectify(np.real(np.conj(cpc1)*cpc2)) @ beta_zk
-#
-#         # multiplication of rotated versions for sidelobe cancellation
-#         power_map = (np.prod(power_map,2)**1).T
-#
-#     elif beampattern == 'pwd':
-#         pwd_pattern = sph_harm_array(N_sh, theta_look, phi_look)
-#
-#         # pwd across t-f data
-#         power_map = (pwd_pattern @ out_spec).T
-#
-#         # sum across frequency bands
-#         power_map = np.real(((rectify(pwd) @ beta_zk) ** 2)).T
-#
-#     return theta_look, phi_look, power_map
-#
+
+def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
+            sample_points=spherical_sampling.fibonacci(600)):
+
+    p_nm_t, fs_orig = sf.read(audio)
+
+    # remove channels for SH orders > N_sh
+    p_nm_t = p_nm_t[:, :(N_sh+1)**2]
+    p_nm_t = p_nm_t.T
+
+    if fs_orig != fs:
+        # resample
+        p_nm_t = resampy.resample(p_nm_t, fs_orig, fs)
+
+    N_frames = len(p_nm_t.T) // N_fft
+
+    theta_look, phi_look = sample_points[:,0], sample_points[:,1]
+
+    # set up sphere object for peak finding
+    sph = Sphere(theta=phi_look, phi=theta_look)
+
+    # set up array for output power map
+    power_map = np.zeros((len(theta_look), N_frames))
+
+    # frequency band weighting (constant here)
+    beta_zk = np.array([1]*(N_fft//2))
+
+    if beampattern == 'cropac':
+        # create beampatterns
+        c1, c2 = cropac_beams(N_sh, theta_look, phi_look)
+
+        for i in range(N_frames):
+            # trim to frame
+            frame = p_nm_t[:,N_fft*i:N_fft*(i+1)]
+            p_nm_k = np.fft.fft(frame)[:,:N_fft//2]
+
+            # beamforming stage
+            cpc1 = c1 @ p_nm_k
+            cpc2 = c2 @ p_nm_k
+
+            # calculate cross-pattern coherence and sum across frequency bands
+            cropac = rectify(np.real(np.conj(cpc1)*cpc2)) @ beta_zk
+
+            # multiplication of rotated versions for sidelobe cancellation
+            cropac = np.prod(cropac,0).T
+
+            # add frame to power map
+            power_map[:,i] += cropac
+
+    elif beampattern == 'pwd':
+        # create beampattern
+        pwd_pattern = sph_harm_array(N_sh, theta_look, phi_look)
+
+        for i in range(N_frames):
+            # trim to frame
+            frame = p_nm_t[:,N_fft*i:N_fft*(i+1)]
+            p_nm_k = np.fft.fft(frame)[:,:N_fft//2]
+
+            # beamforming stage
+            pwd = pwd_pattern @ p_nm_k
+
+            # sum across frequency bands
+            pwd = np.real(rectify(pwd) @ beta_zk) ** 2
+
+            # add frame to power map
+            power_map[:,i] += pwd
+
+    return power_map, theta_look, phi_look
+
 #########################################################################
 ### EVERYTHING BELOW THIS LINE NEEDED ONLY WHEN WORKING WITH
 ### RAW EIGENMIKE AUDIO OUTPUT - (SEMI) DEPRECATED
@@ -345,3 +368,57 @@ def sph_hankel2(n, z, derivative=False):
           - 1j*sp.spherical_yn(n, z, derivative))
 
     return h2
+
+# vectorised version of beamforing files over time -
+# requires too much computer memory for long files
+#
+# def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
+#             sample_points=spherical_sampling.fibonacci(600)):
+#
+#     p_nm_t, fs_orig = sf.read(audio)
+#
+#     # remove channels for SH orders > N_sh
+#     p_nm_t = p_nm_t[:, :(N_sh+1)**2]
+#     p_nm_t = p_nm_t.T
+#
+#     if fs_orig != fs:
+#         # resample
+#         p_nm_t = resampy.resample(p_nm_t, fs_orig, fs)
+#
+#     N_frames = len(p_nm_t.T) // N_fft
+#
+#     theta_look, phi_look = sample_points[:,0], sample_points[:,1]
+#
+#     # get t-f representation of audio
+#     # rectangular windows, 0% overlap presently
+#     out_spec = np.array([np.fft.fft(p_nm_t[:,N_fft*i:N_fft*(i+1)])
+#                         [:,:N_fft//2].T for i in range(N_frames)])
+#     out_spec = np.moveaxis(out_spec, 0, 2)
+#
+#     # frequency band weighting (constant here)
+#     beta_zk = np.array([1]*(N_fft//2))
+#
+#     if beampattern == 'cropac':
+#         c1, c2 = cropac_beams(N_sh, theta_look, phi_look)
+#
+#         # cropac beams across t-f data
+#         cpc1 = (c1 @ np.expand_dims(out_spec, 1)).T
+#         cpc2 = (c2 @ np.expand_dims(out_spec, 1)).T
+#
+#         # calculate cross-pattern coherence & sum across frequencies
+#         power_map = rectify(np.real(np.conj(cpc1)*cpc2)) @ beta_zk
+#
+#         # multiplication of rotated versions for sidelobe cancellation
+#         power_map = (np.prod(power_map,2)**1).T
+#
+#     elif beampattern == 'pwd':
+#         pwd_pattern = sph_harm_array(N_sh, theta_look, phi_look)
+#
+#         # pwd across t-f data
+#         power_map = (pwd_pattern @ out_spec).T
+#
+#         # sum across frequency bands
+#         power_map = np.real(((rectify(pwd) @ beta_zk) ** 2)).T
+#
+#     return theta_look, phi_look, power_map
+#
