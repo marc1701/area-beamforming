@@ -5,10 +5,6 @@ from utilities import *
 import soundfile as sf
 import resampy
 
-# spherical peak finding
-from dipy.core.sphere import Sphere
-from dipy.direction import peak_directions
-
 
 def cropac_beams(N, theta, phi):
 
@@ -189,9 +185,6 @@ def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
     N_frames = len(p_nm_t.T) // N_fft
 
     theta_look, phi_look = sample_points[:,0], sample_points[:,1]
-
-    # set up sphere object for peak finding
-    sph = Sphere(theta=phi_look, phi=theta_look)
 
     # set up array for output power map
     power_map = np.zeros((len(theta_look), N_frames))
