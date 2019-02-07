@@ -62,11 +62,11 @@ def obj_trajectories(xy_t, eps=.4, min_samples=5, C=1e3, gamma=2):
     xy_carts = cart_scaler.fit_transform(xy_cart)
 
     # create dbscan object and fit to data
-    db = DBSCAN(eps=0.4, min_samples=5).fit(xy_carts)
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(xy_carts)
     labels = db.labels_
 
     # support vector regression model
-    svr_poly = SVR(C=1e3, gamma=2)
+    svr_poly = SVR(C=C, gamma=gamma)
 
     # set up array for output data
     n_datapoints = labels[labels!=-1].shape[0]
