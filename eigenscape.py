@@ -2,21 +2,23 @@ import os
 import glob
 import librosa
 import resampy
+import comedie
+import datatools
 import numpy as np
 import pandas as pd
 import seaborn as sn
 import soundfile as sf
 import progressbar as pb
+import shbeamforming as shb
 import matplotlib.pyplot as plt
+
+from spatial import *
 from scipy import interp
 from collections import OrderedDict
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler, label_binarize
 from sklearn.metrics import (confusion_matrix, classification_report,
                                 roc_curve, auc)
-
-from spatial import *
-import datatools
 
 
 class MultiGMMClassifier:
@@ -207,6 +209,76 @@ def calculate_dirac(filepath, hi_freq=None, n_bands=20, filt_taps=2048):
     return features
 
 
+def calculate_HOA_features(filepath, cropac_beams, beam_points,
+                            n_bands=20, n_fft=2048):
+
+    audio, fs = sf.read(filepath)
+
+    # resample
+    fs_new = 16000
+    p_nm_t = resampy.resample(audio.T, fs, fs_new)
+    fs = fs_new
+
+    framed_audio = multichannel_frame(p_nm_t, n_fft)
+    framed_audio = framed_audio.swapaxes(1,2)
+    N_frames = len(framed_audio)
+
+    filterbanks = get_mel_filterbanks(20, n_fft, fs)
+
+    # cropac beams as input tuple to avoid recalculating every time
+    c1, c2 = cropac_beams
+
+    # peak finding
+
+    azi_vals = np.zeros((N_frames,20))
+    elev_vals = np.zeros((N_frames,20))
+    diff_vals = np.zeros((N_frames, 20, 4))
+
+    for i in range(N_frames):#N_frames):
+
+        frame = framed_audio[i,:,:]
+        p_nm_k = np.fft.fft(frame)[:,:n_fft//2]
+
+        # loop through mel bands for diffuseness profile calculation
+        for j, mel_band in enumerate(filterbanks):
+
+            # get mel-filtered time-domain signal
+            filt = p_nm_k * mel_band
+            inv_filt = np.fft.ifft(filt)
+
+            # calculate diffuseness profile and save
+            diff_profile = comedie.diff_profile(inv_filt)
+            diff_vals[i, j, :] = diff_profile
+
+        # DOA calcuation
+        cpc1 = c1 @ p_nm_k
+        cpc2 = c2 @ p_nm_k
+
+        # frequency band weighting (mel weighting)
+        beta_zk = filterbanks.T # does filterbanks all at once
+
+        # calculate cross-pattern coherence and sum across frequency bands
+        cropac = shb.rectify(np.real(np.conj(cpc1)*cpc2)) @ beta_zk
+
+        # multiplication of rotated versions for sidelobe cancellation
+        cropac = np.prod(cropac,0).T
+
+        # this only finds one peak per band
+        peaks = np.where(cropac == cropac.max())
+
+        doa = beam_points[np.argmax(cropac, axis=1)]
+
+        azi_vals[i,:] = doa[:,0]
+        elev_vals[i,:] = doa[:,1]
+
+    # format features
+    doa_features = np.rad2deg(
+                    np.concatenate((azi_vals, elev_vals), axis=1)).round()
+    diff_features = diff_vals.reshape(-1, 80).round(3)
+    features = np.concatenate((doa_features, diff_features), axis=1)
+
+    return features
+
 
 def extract_info( file_to_read ):
     # converts file lists into dictionaries with file names and class labels
@@ -365,3 +437,30 @@ def plot_multifold_roc( y_test_folds, y_score_folds, label_list ):
         plt.title('Receiver Operating Characteristic - ' + label_list[j])
         plt.legend(loc="lower right")
         plt.show()
+
+
+def get_mel_filterbanks(N_filt=20, N_fft=2048, fs=16000,
+                            low_freq=0, high_freq=None):
+    """ Adapted from code provided at http://practicalcryptography.com/
+    miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-
+    mfccs/
+    """
+
+    high_freq= high_freq or fs/2
+    assert high_freq <= fs/2, "high_freq is greater than fs/2"
+
+    # compute points evenly spaced in mels
+    lowmel = librosa.core.hz_to_mel(low_freq)
+    highmel = librosa.core.hz_to_mel(high_freq)
+    melpoints = np.linspace(lowmel, highmel, N_filt+2)
+    # our points are in Hz, but we use fft bins, so we have to convert
+    #  from Hz to fft bin number
+    bin = np.floor((N_fft+1) * librosa.core.mel_to_hz(melpoints)/fs)
+
+    fbank = np.zeros([N_filt, N_fft//2])
+    for j in range(0, N_filt):
+        for i in range(int(bin[j]), int(bin[j+1])):
+            fbank[j, i] = (i - bin[j]) / (bin[j+1]-bin[j])
+        for i in range(int(bin[j+1]), int(bin[j+2])):
+            fbank[j, i] = (bin[j+2]-i) / (bin[j+2]-bin[j+1])
+    return fbank
