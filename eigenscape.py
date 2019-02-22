@@ -278,7 +278,43 @@ def calculate_HOA_features(filepath, cropac_beams, beam_points,
     features = np.concatenate((doa_features, diff_features), axis=1)
 
     return features
+    
+    
+def calculate_diff_profile(filepath, n_bands=20, n_fft=2048):
+	
+	audio, fs = sf.read(filepath)
 
+    # resample
+	fs_new = 16000
+	p_nm_t = resampy.resample(audio.T, fs, fs_new)
+	fs = fs_new
+
+	framed_audio = multichannel_frame(p_nm_t, n_fft)
+	framed_audio = framed_audio.swapaxes(1,2)
+	N_frames = len(framed_audio)
+
+	filterbanks = get_mel_filterbanks(20, n_fft, fs)
+    
+	diff_vals = np.zeros((N_frames, 20, 4))
+    
+	for i in range(N_frames):#N_frames):
+
+		frame = framed_audio[i,:,:]
+		p_nm_k = np.fft.fft(frame)[:,:n_fft//2]
+
+		# loop through mel bands for diffuseness profile calculation
+		for j, mel_band in enumerate(filterbanks):
+
+            # get mel-filtered time-domain signal
+			filt = p_nm_k * mel_band
+			inv_filt = np.fft.ifft(filt)
+
+            # calculate diffuseness profile and save
+			diff_profile = comedie.diff_profile(inv_filt)
+			diff_vals[i, j, :] = diff_profile
+        
+	return diff_vals.reshape(-1, 80).round(3)
+	
 
 def extract_info( file_to_read ):
     # converts file lists into dictionaries with file names and class labels
