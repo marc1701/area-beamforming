@@ -155,8 +155,6 @@ def build_audio_featureset(feature_extractor, dataset_directory='', **kwargs):
     return data, indices, label_list
 
 
-dirac_fmt = ['%d']*(20) + ['%d']*(20) + ['%1.3f']*(20) + ['%d']
-
 def save_data(filename, data, indices, label_list, fmt='%1.3f'):
     # write out file with sensible number formatting (minimises file size)
     np.savetxt(filename + '_data.txt', data, fmt)
@@ -172,6 +170,23 @@ def save_data(filename, data, indices, label_list, fmt='%1.3f'):
     with open(filename + '_labels.txt','w') as out_file:
         for label in label_list:
             out_file.write(label + '\n')
+
+dirac_fmt = ['%d']*(20) + ['%d']*(20) + ['%1.3f']*(20) + ['%d']
+
+
+def load_data(dataname):
+
+    data = np.loadtxt(dataname + '_data.txt')
+    indices = eval(open(dataname + '_file_indices.txt', 'r').read())
+    label_list = open(dataname + '_labels.txt', 'r').readlines()
+
+    return data, indices, label_list
+
+
+def label_abbrev(label_list):
+
+    return [''.join(caps for caps in label if caps.isupper())
+                    for label in label_list]
 
 
 def calculate_mfccs(filepath):
@@ -278,10 +293,10 @@ def calculate_HOA_features(filepath, cropac_beams, beam_points,
     features = np.concatenate((doa_features, diff_features), axis=1)
 
     return features
-    
-    
+
+
 def calculate_diff_profile(filepath, n_bands=20, n_fft=2048):
-	
+
 	audio, fs = sf.read(filepath)
 
     # resample
@@ -294,9 +309,9 @@ def calculate_diff_profile(filepath, n_bands=20, n_fft=2048):
 	N_frames = len(framed_audio)
 
 	filterbanks = get_mel_filterbanks(20, n_fft, fs)
-    
+
 	diff_vals = np.zeros((N_frames, 20, 4))
-    
+
 	for i in range(N_frames):#N_frames):
 
 		frame = framed_audio[i,:,:]
@@ -312,9 +327,9 @@ def calculate_diff_profile(filepath, n_bands=20, n_fft=2048):
             # calculate diffuseness profile and save
 			diff_profile = comedie.diff_profile(inv_filt)
 			diff_vals[i, j, :] = diff_profile
-        
+
 	return diff_vals.reshape(-1, 80).round(3)
-	
+
 
 def extract_info( file_to_read ):
     # converts file lists into dictionaries with file names and class labels
@@ -341,8 +356,7 @@ def plot_confusion_matrix( y_test, y_score, label_list, plot=True ):
     true = np.argmax(y_test, 1)
     predictions = np.argmax(y_score, 1)
 
-    label_abbr = [''.join(caps for caps in label if caps.isupper())
-                    for label in label_list]
+    label_abbr = label_abbrev(label_list)
     # report = classification_report(true, predictions, target_names=label_list)
 
     confmat = confusion_matrix(true, predictions)
