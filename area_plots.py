@@ -52,49 +52,24 @@ def annotated_spectrogram(audio_file, annotations_file, fs_spec=16000,
 
 
 def doa_plot(data_file, plot_orig=True, figsize=(10,10), lw=2,
-    point_predictions=None, trajectory_predictions=None):
+    xy_t=None, sources_out=None):
 
     doa_data = np.genfromtxt(data_file, delimiter=',')
 
     azi_vals = np.arange(-180, 190, 10)
     elev_vals = np.arange(-90, 100, 10)
 
-    if point_predictions is not None:
-        # end of final audio clip
-        audio_length_seconds = doa_data[-1,1]
-        # assumes active source in last frame of clip
-        n_frames = int(point_predictions[-1,0] + 1)
-        time_index = np.linspace(0, audio_length_seconds, n_frames)
-
-        time_plot_points = time_index[point_predictions[:,0].astype(int)]
-        azi_plot_points = np.rad2deg(point_predictions[:,1])
-        elev_plot_points = -(np.rad2deg(point_predictions[:,2]) - 90)
+    if xy_t is not None:
+        time_plot_points = xy_t[:,0]
+        azi_plot_points = np.rad2deg(xy_t[:,1])
+        elev_plot_points = -(np.rad2deg(xy_t[:,2]) - 90)
 
         # faff about rescaling angles
         azi_plot_points[azi_plot_points > 180] = azi_plot_points[
             azi_plot_points > 180] - 360
 
-    if trajectory_predictions is not None:
-
-        # end of final audio clip
-        audio_length_seconds = doa_data[-1,1]
-        # assumes active source in last frame of clip
-        n_frames = int(trajectory_predictions[-1,1] + 1)
-        time_index = np.linspace(0, audio_length_seconds, n_frames)
-
-        # frames to time in seconds
-        trajectory_predictions[:,1] = time_index[
-            trajectory_predictions[:,1].astype(int)]
-
-        # rescale angles faff
-        trajectory_predictions[:,2][
-            trajectory_predictions[:,2] > np.pi] = trajectory_predictions[
-            :,2][trajectory_predictions[:,2] > np.pi] - (2*np.pi)
-        trajectory_predictions[:,3] = trajectory_predictions[:,3] - (np.pi/2)
-
-        trajectory_predictions[:,2:] = np.rad2deg(trajectory_predictions[:,2:])
-
-        unique_labels = set(trajectory_predictions[:,0])
+    if sources_out is not None:
+        unique_labels = set(sources_out[:,0])
         colors = [plt.cm.Spectral(each)
             for each in np.linspace(0, 1, len(unique_labels))]
 
@@ -115,13 +90,13 @@ def doa_plot(data_file, plot_orig=True, figsize=(10,10), lw=2,
             for j in a:
                 plt.hlines(np.zeros(len(a)) + val, j[0], j[1], lw=lw)
 
-    if point_predictions is not None:
+    if xy_t is not None:
         plt.scatter(time_plot_points, azi_plot_points, s=lw, color='red')
 
-    if trajectory_predictions is not None:
+    if sources_out is not None:
         for label in unique_labels:
-            source = trajectory_predictions[
-                trajectory_predictions[:,0] == label]
+            source = sources_out[
+                sources_out[:,0] == label]
 
             if label != -1: # -1 indicates ungrouped points
                 # add NaNs to create discontinuities in plot
@@ -146,13 +121,13 @@ def doa_plot(data_file, plot_orig=True, figsize=(10,10), lw=2,
             for j in a:
                 plt.hlines(np.zeros(len(a)) + val, j[0], j[1], lw=lw)
 
-    if point_predictions is not None:
+    if xy_t is not None:
         plt.scatter(time_plot_points, elev_plot_points, s=lw, color='red')
 
-    if trajectory_predictions is not None:
+    if sources_out is not None:
         for label in unique_labels:
-            source = trajectory_predictions[
-                trajectory_predictions[:,0] == label]
+            source = sources_out[
+                sources_out[:,0] == label]
 
             if label != -1:
                 # add NaNs to create discontinuities in plot
@@ -176,7 +151,7 @@ def doa_plot(data_file, plot_orig=True, figsize=(10,10), lw=2,
 #
 # for label in unique_labels:
 #
-#     source = trajectory_predictions[trajectory_predictions[:,0] == label]
+#     source = sources_out[sources_out[:,0] == label]
 #     doa_pts = xy_t[labels == label]
 #
 #     if label != -1:
