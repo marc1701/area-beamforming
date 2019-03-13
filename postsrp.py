@@ -1,6 +1,8 @@
 import numpy as np
 import utilities
 
+import shbeamforming as shb
+
 # spherical peak finding
 from dipy.core.sphere import Sphere
 from dipy.direction import peak_directions
@@ -129,8 +131,20 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
     # faff about rescaling angles
     sources_out[:,2][sources_out[:,2] > np.pi] = (
         sources_out[:,2][sources_out[:,2] > np.pi] - (2*np.pi))
-    sources_out[:,3] = sources_out[:,3] - (np.pi/2)
+    sources_out[:,3] = -(sources_out[:,3] - (np.pi/2))
     sources_out[:,2:] = np.rad2deg(sources_out[:,2:])
 
     # sources_out contains polynomial fit to identified sources
+    return sources_out
+
+
+def find_sources(audio_file, **kwargs):
+    # need to figure out best way of making kwargs work
+    power_map, theta, phi, audio_len = shb.SRP_map(audio_file)
+
+    xy_t = sph_peaks_t(power_map, theta, phi,
+        audio_length_seconds=audio_len)
+
+    sources_out = obj_trajectories(xy_t)
+
     return sources_out

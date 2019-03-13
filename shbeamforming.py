@@ -173,6 +173,7 @@ def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
             sample_points=spherical_sampling.fibonacci(600)):
 
     p_nm_t, fs_orig = sf.read(audio)
+    audio_length_seconds = len(p_nm_t)/fs_orig
 
     # remove channels for SH orders > N_sh
     p_nm_t = p_nm_t[:, :(N_sh+1)**2]
@@ -232,7 +233,7 @@ def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
             # add frame to power map
             power_map[:,i] += pwd
 
-    return power_map, theta_look, phi_look
+    return power_map, theta_look, phi_look, audio_length_seconds
 
 #########################################################################
 ### EVERYTHING BELOW THIS LINE NEEDED ONLY WHEN WORKING WITH
