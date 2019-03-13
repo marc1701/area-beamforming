@@ -51,130 +51,113 @@ def annotated_spectrogram(audio_file, annotations_file, fs_spec=16000,
     plt.xlabel('Time (seconds)')
 
 
-def doa_plot(data_file, plot_orig=True, figsize=(10,10), lw=2,
-    xy_t=None, sources_out=None):
+def doa_plot(doa_data, title=None, figsize=(10,10)):
 
-    doa_data = np.genfromtxt(data_file, delimiter=',')
+    unique_labels = set(doa_data[:,0])
+    colors = [plt.cm.Spectral(each)
+                for each in np.linspace(0, 1, len(unique_labels))]
 
-    azi_vals = np.arange(-180, 190, 10)
-    elev_vals = np.arange(-90, 100, 10)
+    ax, ax2 = setup_doa_axes(figsize)
 
-    if xy_t is not None:
-        time_plot_points = xy_t[:,0]
-        azi_plot_points = np.rad2deg(xy_t[:,1])
-        elev_plot_points = -(np.rad2deg(xy_t[:,2]) - 90)
+    for label in unique_labels:
+        source = doa_data[doa_data[:,0] == label]
 
-        # faff about rescaling angles
-        azi_plot_points[azi_plot_points > 180] = azi_plot_points[
-            azi_plot_points > 180] - 360
+        if label != -1: # -1 indicates ungrouped points
+            # add NaNs to create discontinuities in plot
+            pos = np.where(np.abs(np.diff(source[:,2:], axis=0)) >= 360)[0]+1
+            theta_nan = np.insert(source[:,2], pos, np.nan)
+            phi_nan = np.insert(source[:,3], pos, np.nan)
+            t_nan = np.insert(source[:,1], pos, np.nan)
 
-    if sources_out is not None:
-        unique_labels = set(sources_out[:,0])
-        colors = [plt.cm.Spectral(each)
-            for each in np.linspace(0, 1, len(unique_labels))]
+            ax.plot(t_nan, theta_nan,
+                    c='black', zorder=10, alpha=1, linewidth=3)
+            ax.text(t_nan[0], theta_nan[0]+20, str(int(label)),
+                    backgroundcolor=colors[int(label)])
 
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1])
-    gs.update(hspace=0.05)
+            ax2.plot(t_nan, phi_nan,
+                    c='black', zorder=10, alpha=1, linewidth=3)
+            ax2.text(t_nan[0], phi_nan[0]+10, str(int(label)),
+                     backgroundcolor=colors[int(label)])
 
-    fig = plt.figure(figsize=figsize)
-    ax = plt.subplot(gs[0])
 
-    plt.xticks([])
-    plt.yticks(ticks=np.arange(-180,190,40))
-    plt.ylim([-190,190])
-    plt.ylabel('Azimuth (Degrees)')
+def doa_plot_multi(doa_data,
+                   zorder=[1,2],
+                   plt_colors=[False, True],
+                   alpha=[1,1],
+                   linestyle=['--','-'],
+                   linewidth=[3,3],
+                   colors=['black', 'red'],
+                   figsize=(10,10)):
+    ### pass the ground truth doa data and the predictions in as a list
 
-    if plot_orig:
-        for i, val in enumerate(azi_vals):
-            a = doa_data[:,:2][doa_data[:,-1] == val]
-            for j in a:
-                plt.hlines(np.zeros(len(a)) + val, j[0], j[1], lw=lw)
+    ax, ax2 = setup_doa_axes(figsize)
 
-    if xy_t is not None:
-        plt.scatter(time_plot_points, azi_plot_points, s=lw, color='red')
+    for i, entry in enumerate(doa_data):
 
-    if sources_out is not None:
+        unique_labels = set(entry[:,0])
+
         for label in unique_labels:
-            source = sources_out[
-                sources_out[:,0] == label]
+            source = entry[entry[:,0] == label]
 
             if label != -1: # -1 indicates ungrouped points
                 # add NaNs to create discontinuities in plot
-                pos = np.where(np.abs(np.diff(source[:,2:], axis=0)) >= 6)[0]+1
+                pos = np.where(np.abs(np.diff(source[:,2:], axis=0))>=360)[0]+1
                 theta_nan = np.insert(source[:,2], pos, np.nan)
                 phi_nan = np.insert(source[:,3], pos, np.nan)
                 t_nan = np.insert(source[:,1], pos, np.nan)
 
                 ax.plot(t_nan, theta_nan,
-                        c=colors[int(label)], zorder=10, alpha=1, linewidth=3)
+                        c=colors[i],
+                        zorder=zorder[i],
+                        alpha=alpha[i],
+                        linewidth=linewidth[i],
+                        linestyle=linestyle[i])
+
+                ax2.plot(t_nan, phi_nan,
+                         c=colors[i],
+                         zorder=zorder[i],
+                         alpha=alpha[i],
+                         linewidth=linewidth[i],
+                         linestyle=linestyle[i])
+
+
+def doa_scatter(xy_t, color='red', s=.1, figsize=(10,10)):
+
+    time_plot_points = xy_t[:,0]
+    azi_plot_points = np.rad2deg(xy_t[:,1])
+    elev_plot_points = -(np.rad2deg(xy_t[:,2]) - 90)
+
+    # faff about rescaling angles
+    azi_plot_points[azi_plot_points > 180] = azi_plot_points[
+        azi_plot_points > 180] - 360
+
+    ax, ax2 = setup_doa_axes(figsize)
+
+    ax.scatter(time_plot_points, azi_plot_points, s, color)
+    ax2.scatter(time_plot_points, elev_plot_points, s, color)
+
+
+def setup_doa_axes(figsize):
+    gs = gridspec.GridSpec(2, 1, height_ratios=[1,1])
+    gs.update(hspace=0.05)
+
+    fig = plt.figure(figsize=figsize)
+
+    ax = plt.subplot(gs[0])
+    plt.xticks([])
+    plt.yticks(ticks=np.arange(-180,190,40))
+    plt.ylim([-190,190])
+    plt.ylabel('Azimuth (Degrees)')
 
     ax2 = plt.subplot(gs[1])
-
     plt.yticks(ticks=np.arange(-90,100,20))
     plt.ylim([-100,100])
     plt.ylabel('Elevation (Degrees)')
     plt.xlabel('Time (Seconds)')
 
-    if plot_orig:
-        for i, val in enumerate(elev_vals):
-            a = doa_data[:,:2][doa_data[:,-2] == val]
-            for j in a:
-                plt.hlines(np.zeros(len(a)) + val, j[0], j[1], lw=lw)
-
-    if xy_t is not None:
-        plt.scatter(time_plot_points, elev_plot_points, s=lw, color='red')
-
-    if sources_out is not None:
-        for label in unique_labels:
-            source = sources_out[
-                sources_out[:,0] == label]
-
-            if label != -1:
-                # add NaNs to create discontinuities in plot
-                pos = np.where(np.abs(np.diff(source[:,2:], axis=0)) >= 6)[0]+1
-                theta_nan = np.insert(source[:,2], pos, np.nan)
-                phi_nan = np.insert(source[:,3], pos, np.nan)
-                t_nan = np.insert(source[:,1], pos, np.nan)
-
-                ax2.plot(t_nan, -phi_nan,
-                        c=colors[int(label)], zorder=10, alpha=1, linewidth=3)
+    return ax, ax2
 
 
-########### plot 3D trajectories w/scatter ###########
-# comment out scatter lines to remove scatter
-# set up graph axis
-# fig, ax = plt.subplots(1, 1, subplot_kw={'projection':'3d', 'aspect':'equal'}, figsize=(10,10))
-#
-# unique_labels = set(labels)
-# colors = [plt.cm.Spectral(each)
-#           for each in np.linspace(0, 1, len(unique_labels))]
-#
-# for label in unique_labels:
-#
-#     source = sources_out[sources_out[:,0] == label]
-#     doa_pts = xy_t[labels == label]
-#
-#     if label != -1:
-#
-#         # add NaNs to create discontinuities in plot
-#         pos = np.where(np.abs(np.diff(source[:,2:], axis=0)) >= 0.5)[0]+1
-#         theta_nan = np.insert(source[:,2], pos, np.nan)
-#         phi_nan = np.insert(source[:,3], pos, np.nan)
-#         t_nan = np.insert(source[:,1], pos, np.nan)
-#
-#         ax.plot(theta_nan, phi_nan, t_nan,
-#                 c=colors[int(label)], zorder=10, alpha=1, linewidth=3)
-#
-#         ax.scatter(doa_pts[:,1], doa_pts[:,2], doa_pts[:,0],
-#                    c=colors[int(label)], zorder=10, alpha=.1)
-#
-#     else:
-#         ax.scatter(doa_pts[:,1], doa_pts[:,2], doa_pts[:,0],
-#                    c='black', zorder=10, alpha=.1)
-#
-#
-#
-#
 # ########### plot hammer-projection contours ###########
 # # for use in Jupyter notebook, need to set %matplotlib notebook
 # N_frames = power_map.shape[1]
