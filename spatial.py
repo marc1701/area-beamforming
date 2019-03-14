@@ -80,10 +80,10 @@ def extract_spatial_features(audio, fs, low_freq=0, hi_freq=None, n_bands=20,
     E = 0.5 * rho_0 * (p**2 / Z_0**2 + np.linalg.norm(u, axis=2)**2)
     # calculate 2D matrix of E for each sample and frequency band
 
-    E_means = np.mean(multichannel_frame(E, pad=True), axis=1)
+    E_means = np.mean(multichannel_frame(E, pad=False), axis=1)
     # calculate mean value of E across time frames
 
-    I_means = np.array([np.mean(multichannel_frame(freq_band.T, pad=True),
+    I_means = np.array([np.mean(multichannel_frame(freq_band.T, pad=False),
                         axis=1) for freq_band in I.T])
     # calculate mean value of I across time frames
 
