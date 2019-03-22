@@ -32,7 +32,7 @@ def binarise(doa_data, step=0.02):
         if np.size(angle_index) > 0:
             array[time_index, angle_index] = True
 
-    return array, frames, angles
+    return array, angles
 
 
 def frame_recall(ref_array, pred_array):
@@ -55,14 +55,28 @@ def angular_dist(sph_angle1, sph_angle2):
             np.cos(delta1)*np.cos(delta2)*np.cos(alpha1-alpha2)))
 
 
-def frame_angle_error(ref_angles, pred_angles):
+def angle_error(ref_angles, pred_angles):
 
     # make matrix of angular distances between all pairwise angle combinations
     distance_matrix = cdist(ref_angles, pred_angles, angular_dist)
 
     # pair up each predicted angle to nearest reference angle
-    # this is neat but turns out to be unneccessary
-    # a, b = linear_sum_assignment(distance_matrix)
-    # distance_matrix[a,b].sum()
+    a, b = linear_sum_assignment(distance_matrix)
 
-    return distance_matrix.min(axis=1).sum()
+    return distance_matrix[a,b].sum()
+
+
+def doa_error(ref_array, ref_angles, pred_array, pred_angles):
+
+    total_error = 0.0
+
+    for ref, pred in zip(ref_array, pred_array):
+
+        doa_r = ref_angles[np.where(ref)[0]]
+        doa_p = pred_angles[np.where(pred)[0]]
+
+        frame_error = angle_error(doa_r, doa_p)
+
+        total_error += frame_error
+
+    return total_error / np.sum(pred_array)
