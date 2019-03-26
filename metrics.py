@@ -9,28 +9,20 @@ def binarise(doa_data, step=0.02):
     angles = np.unique(doa_data[:,2:], axis=0)
     array = np.zeros((len(frames), len(angles)), dtype=bool)
 
-    # find indices where source number changes
-    indices = np.where(np.diff(doa_data[:,0]))[0]
-
-    # add NaN values in to array at these indices
-    # *** will this work with simultaneous sources? ***
-    for n, idx in enumerate(indices):
-        idx += 2*n
-        nan_array = np.array([[np.nan, doa_data[idx,1], np.nan, np.nan],
-                              [np.nan, doa_data[idx+1,1], np.nan, np.nan]])
-        doa_data = np.insert(doa_data, idx+1, nan_array, axis=0)
-    zero_nan_array = np.array([[np.nan, 0, np.nan, np.nan],
-                               [np.nan, doa_data[0,1], np.nan, np.nan]])
-    doa_data = np.insert(doa_data, 0, zero_nan_array, axis=0)
-
-    # binarise angle activation data
     for t in frames:
-        angle = doa_data[np.where(t<doa_data[:,1])[0].min(),2:]
-        angle_index = (angles == angle).all(axis=1).nonzero()
+        a = t > doa_data[:,0] # t > onset
+        b = t < doa_data[:,1] # t < offset
+        c = a == b
+
+        f_angles = doa_data[c,2:]
+
+        angle_indices = [(angles == angle).all(axis=1).nonzero()[0][0]
+            for angle in f_angles]
         time_index = np.where(frames == t)[0][0]
 
-        if np.size(angle_index) > 0:
-            array[time_index, angle_index] = True
+        for angle_index in angle_indices:
+            if np.size(angle_index) > 0:
+                array[time_index, angle_index] = True
 
     return array, angles
 
