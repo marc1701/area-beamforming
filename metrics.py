@@ -4,6 +4,20 @@ from scipy.optimize import linear_sum_assignment
 
 def binarise(doa_data, step=0.02):
 
+    reformat_doa_data = np.zeros((len(np.unique(doa_data[:,0])), 4))
+
+    for i, obj in enumerate(np.unique(doa_data[:,0])):
+
+        obj_start = min(np.where(doa_data[:,0] == obj)).min()
+        obj_stop = min(np.where(doa_data[:,0] == obj)).max()
+
+        reformat_doa_data[i] = np.array([doa_data[obj_start,1],
+                                         doa_data[obj_stop,1],
+                                         doa_data[obj_start,3],
+                                         doa_data[obj_stop,2]])
+
+    doa_data = reformat_doa_data
+
     # set up output
     frames = np.arange(0, doa_data[:,1].max(), step)
     angles = np.unique(doa_data[:,2:], axis=0)
@@ -27,11 +41,24 @@ def binarise(doa_data, step=0.02):
     return array, angles
 
 
-def frame_recall(ref_array, pred_array):
+def frame_recall(ref_doa_data, pred_doa_data):
+    ref_array, _ = binarise(ref_doa_data)
+    pred_array, _ = binarise(pred_doa_data)
 
     D_R = ref_array.sum(axis=1)
     D_P = pred_array.sum(axis=1)
 
+    # match lengths of reference and prediction vectors ...
+    if len(D_R) > len(D_P):
+        pad_len = len(D_R) - len(D_P)
+        pad = np.zeros((pad_len))
+        D_P = np.concatenate((D_P, pad))
+    elif len(D_R) < len(D_P):
+        pad_len = len(D_P) - len(D_R)
+        pad = np.zeros((pad_len))
+        D_R = np.concatenate((D_R, pad))
+
+    # ... or this comparison doesn't work properly
     return (D_R == D_P).sum() / len(ref_array)
 
 
@@ -58,7 +85,10 @@ def angle_error(ref_angles, pred_angles):
     return distance_matrix[a,b].sum()
 
 
-def doa_error(ref_array, ref_angles, pred_array, pred_angles):
+def doa_error(ref_doa_data, pred_doa_data):
+
+    ref_array, ref_angles = binarise(ref_doa_data)
+    pred_array, pred_angles = binarise(pred_doa_data)
 
     total_error = 0.0
 

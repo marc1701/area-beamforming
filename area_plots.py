@@ -51,7 +51,7 @@ def annotated_spectrogram(audio_file, annotations_file, fs_spec=16000,
     plt.xlabel('Time (seconds)')
 
 
-def doa_plot(doa_data, title=None, figsize=(10,10)):
+def doa_plot(doa_data, plot_labels=False, figsize=(10,10)):
 
     unique_labels = set(doa_data[:,0])
     colors = [plt.cm.Spectral(each)
@@ -71,13 +71,14 @@ def doa_plot(doa_data, title=None, figsize=(10,10)):
 
             ax.plot(t_nan, theta_nan,
                     c='black', zorder=10, alpha=1, linewidth=3)
-            ax.text(t_nan[0], theta_nan[0]+20, str(int(label)),
-                    backgroundcolor=colors[int(label)])
-
             ax2.plot(t_nan, phi_nan,
                     c='black', zorder=10, alpha=1, linewidth=3)
-            ax2.text(t_nan[0], phi_nan[0]+10, str(int(label)),
-                     backgroundcolor=colors[int(label)])
+
+            if plot_labels:
+                ax.text(t_nan[0], theta_nan[0]+20, str(int(label)),
+                        backgroundcolor=colors[int(label)])
+                ax2.text(t_nan[0], phi_nan[0]+10, str(int(label)),
+                         backgroundcolor=colors[int(label)])
 
 
 def doa_plot_multi(doa_data,

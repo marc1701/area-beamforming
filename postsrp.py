@@ -15,7 +15,7 @@ from sklearn.svm import SVR
 
 # finding peaks in a spherical function over time
 def sph_peaks_t(power_map, theta_look, phi_look,
-    peak_thresh=.5, max_n_peaks=20, audio_length_seconds=None):
+    max_n_peaks=20, audio_length_seconds=None, **kwargs):
 
     N_frames = power_map.shape[1]
 
@@ -28,9 +28,9 @@ def sph_peaks_t(power_map, theta_look, phi_look,
 
     for i in range(N_frames):
         # peak finding in spherical data
-        _,_,peaks = peak_directions(power_map[:,i], sph,
-                                    relative_peak_threshold=peak_thresh,
-                                    min_separation_angle=5)
+        _,_,peaks = peak_directions(power_map[:,i], sph, **kwargs)
+                                    # relative_peak_threshold=.5,
+                                    # min_separation_angle=5)
 
         # save peaks to arrays
         xdirs = theta_look[peaks]
@@ -80,11 +80,11 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
     xy_cart[:,1:] = cart_scaler.fit_transform(xy_cart[:,1:])
 
     # create dbscan object and fit to data
-    db = DBSCAN(eps=.1, min_samples=10).fit(xy_cart)
+    db = DBSCAN(eps, min_samples).fit(xy_cart)
     labels = db.labels_
 
     # support vector regression model
-    svr_poly = SVR(C=1e3, gamma=2)
+    svr_poly = SVR(C=C, gamma=gamma)
 
     # set up array for output data
     n_datapoints = labels[labels!=-1].shape[0]
@@ -110,7 +110,8 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
 
             # scale back to actual cartesian co-ordinates
             source_inv = cart_scaler.inverse_transform(source[:,1:])
-            poly_inv = np.concatenate((t,cart_scaler.inverse_transform(xyz_poly)), 1)
+            poly_inv = np.concatenate(
+                (t,cart_scaler.inverse_transform(xyz_poly)), 1)
             # the 0 row of these contains the time index (frame number)
 
             # swap to spherical co-ordinates
@@ -122,10 +123,11 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
             # prepare output list of source trajectories identified
             # sources_out format: source_n - time - azimuth - elevation
             this_source_out = np.concatenate((
-                                label_array, poly_inv[:,[0]], poly_sph), 1)
-            sources_out[
-                last_source_idx:last_source_idx+len(
-                    this_source_out), :] += this_source_out
+                label_array, poly_inv[:,[0]], poly_sph), 1)
+
+            sources_out[last_source_idx:last_source_idx+
+                len(this_source_out), :] += this_source_out
+
             last_source_idx += len(this_source_out)
 
     # faff about rescaling angles
@@ -138,13 +140,16 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
     return sources_out
 
 
-def find_sources(audio_file, **kwargs):
-    # need to figure out best way of making kwargs work
-    power_map, theta, phi, audio_len = shb.SRP_map(audio_file)
+def find_sources(input, *args, **kwargs):
+
+    if type(input) == str:
+        power_map, theta, phi, audio_len = shb.SRP_map(input)
+    elif type(input) == tuple:
+        power_map, theta, phi, audio_len = input
 
     xy_t = sph_peaks_t(power_map, theta, phi,
-        audio_length_seconds=audio_len)
+        audio_length_seconds=audio_len, **kwargs)
 
-    sources_out = obj_trajectories(xy_t)
+    sources_out = obj_trajectories(xy_t, *args)
 
     return sources_out
