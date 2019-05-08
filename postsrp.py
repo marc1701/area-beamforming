@@ -80,8 +80,7 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
     xy_cart[:,1:] = cart_scaler.fit_transform(xy_cart[:,1:])
 
     # create dbscan object and fit to data
-    db = DBSCAN(eps, min_samples).fit(xy_cart)
-    labels = db.labels_
+    labels = DBSCAN(eps, min_samples).fit_predict(xy_cart)
 
     # support vector regression model
     svr_poly = SVR(C=C, gamma=gamma)
@@ -139,6 +138,83 @@ def obj_trajectories(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2):
     # sources_out contains polynomial fit to identified sources
     return sources_out
 
+# from pyclustering.cluster.dbscan import dbscan as pydbscan
+# from pyclustering.cluster.optics import optics as pyoptics
+# def obj_trajectories_2(xy_t, eps=.1, min_samples=10, C=1e3, gamma=2,
+#                         algorithm='dbscan', **kwargs):
+#
+#     # set up scaler object
+#     cart_scaler = StandardScaler()
+#
+#     # make cartesian version of spherical input data
+#     xy_cart = np.append(xy_t[:,[0]], utilities.sph_to_cart(xy_t[:,1:]), 1)
+#
+#     # trasform only the spatial co-ordinates
+#     xy_cart[:,1:] = cart_scaler.fit_transform(xy_cart[:,1:])
+#
+#     if algorithm == 'dbscan':
+#         cluster_alg = pydbscan(xy_cart, eps, min_samples)
+#     elif algorithm == 'optics':
+#         cluster_alg = pyoptics(xy_cart, eps, min_samples, **kwargs)
+#
+#     cluster_alg.process()
+#     clusters = cluster_alg.get_clusters()
+#
+#     # support vector regression model
+#     svr_poly = SVR(C=C, gamma=gamma)
+#
+#     # set up array for output data
+#     n_datapoints = len([item for sublist in clusters for item in sublist])
+#     sources_out = np.zeros((n_datapoints, 4))
+#     last_source_idx = 0
+#
+#     for i, cluster in enumerate(clusters):
+#         # get data relating to this source
+#         source = xy_cart[cluster]
+#         # sort in order of time
+#         source = source[source[:,0].argsort()]
+#         # extract data to individual variables
+#         t = source[:,0].reshape(-1,1)
+#         x = source[:,1]; y = source[:,2]; z = source[:,3]
+#
+#         # -1 label indicates unclustered (outlier) points
+#     # if label != -1:
+#         x_poly = svr_poly.fit(t,x).predict(t).reshape(-1,1)
+#         y_poly = svr_poly.fit(t,y).predict(t).reshape(-1,1)
+#         z_poly = svr_poly.fit(t,z).predict(t).reshape(-1,1)
+#
+#         xyz_poly = np.concatenate((x_poly, y_poly, z_poly),1)
+#
+#         # scale back to actual cartesian co-ordinates
+#         source_inv = cart_scaler.inverse_transform(source[:,1:])
+#         poly_inv = np.concatenate(
+#             (t,cart_scaler.inverse_transform(xyz_poly)), 1)
+#         # the 0 row of these contains the time index (frame number)
+#
+#         # swap to spherical co-ordinates
+#         source_sph = utilities.cart_to_sph(source_inv)
+#         poly_sph = utilities.cart_to_sph(poly_inv[:,1:])
+#
+#         label_array = np.array([[i]] * len(poly_inv[:,[0]]))
+#
+#         # prepare output list of source trajectories identified
+#         # sources_out format: source_n - time - azimuth - elevation
+#         this_source_out = np.concatenate((
+#             label_array, poly_inv[:,[0]], poly_sph), 1)
+#
+#         sources_out[last_source_idx:last_source_idx+
+#             len(this_source_out), :] += this_source_out
+#
+#         last_source_idx += len(this_source_out)
+#
+#     # faff about rescaling angles
+#     sources_out[:,2][sources_out[:,2] > np.pi] = (
+#         sources_out[:,2][sources_out[:,2] > np.pi] - (2*np.pi))
+#     sources_out[:,3] = -(sources_out[:,3] - (np.pi/2))
+#     sources_out[:,2:] = np.rad2deg(sources_out[:,2:])
+#
+#     # sources_out contains polynomial fit to identified sources
+#     return sources_out
 
 def find_sources(input, *args, **kwargs):
 
