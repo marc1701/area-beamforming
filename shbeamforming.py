@@ -169,14 +169,18 @@ def rotate_SH(beampattern, theta, phi, psi):
         return SH_weights
 
 
-def SRP_map(audio, fs=16000, N_sh=4, N_fft=256, beampattern='cropac',
+def SRP_map(audio, fs=16000, N_sh=None, N_fft=256, beampattern='cropac',
             sample_points=spherical_sampling.fibonacci(600)):
 
     p_nm_t, fs_orig = sf.read(audio)
     audio_length_seconds = len(p_nm_t)/fs_orig
 
+    if N_sh:
     # remove channels for SH orders > N_sh
-    p_nm_t = p_nm_t[:, :(N_sh+1)**2]
+        p_nm_t = p_nm_t[:, :(N_sh+1)**2]
+    else:
+        N_sh = int(np.sqrt(p_nm_t.shape[-1]) - 1)
+
     p_nm_t = p_nm_t.T
 
     if fs_orig != fs:
