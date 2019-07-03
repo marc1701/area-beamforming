@@ -42,6 +42,10 @@ def binarise(doa_data, step=0.02):
 
 
 def frame_recall(ref_doa_data, pred_doa_data):
+
+    if not pred_doa_data.any():
+        return 0 # not strictly correct probably
+
     ref_array, _ = binarise(ref_doa_data)
     pred_array, _ = binarise(pred_doa_data)
 
@@ -86,6 +90,9 @@ def angle_error(ref_angles, pred_angles):
 
 
 def doa_error(ref_doa_data, pred_doa_data):
+
+    if not pred_doa_data.any():
+        return 0 # again not ideal
 
     ref_array, ref_angles = binarise(ref_doa_data)
     pred_array, pred_angles = binarise(pred_doa_data)

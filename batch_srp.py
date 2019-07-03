@@ -19,7 +19,7 @@ def batch_srp_map(dir, **kwargs):
         progbar.update(i)
 
         # calculate power map for file
-        filepath = 'SEL/noiseless_audio/ov1/test/' + filename
+        filepath = dir + filename
         pwr_tup = SRP_map(filepath, **kwargs)
 
         # add to dictionary of power maps

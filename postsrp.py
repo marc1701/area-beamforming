@@ -1,5 +1,5 @@
-import numpy as np
 import utilities
+import numpy as np
 
 import shbeamforming as shb
 
@@ -8,9 +8,9 @@ from dipy.core.sphere import Sphere
 from dipy.direction import peak_directions
 
 # machine learning
+from sklearn.svm import SVR
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVR
 
 
 # finding peaks in a spherical function over time
