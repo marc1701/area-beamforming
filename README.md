@@ -1,6 +1,6 @@
-### AREA-Beamforming ###
+### AREA-Beamforming 
 
-## by Marc C. Green ##
+## by Marc C. Green
 
 A clustering approach to sound source tracking in Ambisonic audio. This modules contains code for:
 
@@ -12,7 +12,7 @@ A clustering approach to sound source tracking in Ambisonic audio. This modules 
 * Functions to plot outputs.
 * Implementations of _Frame Recall_ and _DOA Error_ performance metrics from DCASE 2019.
 
-#Requirements#
+# Requirements
 * [numpy](http://www.numpy.org/)
 * [soundfile](https://pysoundfile.readthedocs.io/en/0.9.0/)
 * [resampy](https://github.com/bmcfee/resampy)
@@ -23,7 +23,8 @@ A clustering approach to sound source tracking in Ambisonic audio. This modules 
 * [dipy](https://dipy.org/)
 * [scikit-learn](http://scikit-learn.org/stable/)
 
-#Usage#
+# Usage
+
 `find_sources(input, *args, **kwargs)`
 
 `input` should be a path to an Ambisonic audio file.
