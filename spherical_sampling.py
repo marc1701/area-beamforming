@@ -9,7 +9,7 @@ def regular(N, co_ords='sph'):
 
     # find N for each dimension, resulting in smallest possible
     # whole number of points above input N
-    N = np.ceil(np.sqrt(N))
+    N = int(np.ceil(np.sqrt(N)))
 
     # meshgrid of points
     x, y = np.meshgrid(np.linspace(0, 2*np.pi, N),#[:-1],

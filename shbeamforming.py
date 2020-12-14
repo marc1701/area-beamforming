@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.special as sp
+from scipy.special import legendre
 import spherical_sampling
 from utilities import *
 import soundfile as sf
@@ -58,14 +59,16 @@ def sph_harm_array(N, theta, phi, sh_type='real'):
     return np.array(Y_mn)
 
 
-def g0(N_sh):
-    return np.sqrt( (2*N_sh + 1) / (N_sh+1)**2 )
+def g0(N):
+    return np.sqrt((2*N+1)/(N+1)**2)
 
-def d_minimum_sidelobe(N_sh, n_sh):
-    # equation from Delikaris-Manias 2016
-    return (g0(N_sh) * (sp.gamma(N_sh+1) * sp.gamma(N_sh+2) /
-                        sp.gamma(N_sh+1+n_sh) * sp.gamma(N_sh+3+n_sh)))
+def d_minimum_sidelobe(N,n):
+    return (g0(N) * (sp.gamma(N+1) * sp.gamma(N+2)) /
+                    (sp.gamma(N+1+n) * sp.gamma(N+2+n)))
 
+def d_re(N):
+    E = max(legendre(N+1).r)
+    return np.array([legendre(int(np.sqrt(i)))(E) for i in range((N+1)**2)])
 
 # rotations of spherical functions - equations from Rafaely2015 Chpt. 1.6
 def wgnr_D(n, m, mp, alpha, beta, gamma):

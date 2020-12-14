@@ -4,6 +4,7 @@ import resampy
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy.signal import spectrogram
+import seaborn as sns
 
 def annotated_spectrogram(audio_file, annotations_file, fs_spec=16000,
                             figsize=(10,5), height_ratios=[3, 1]):
@@ -51,11 +52,10 @@ def annotated_spectrogram(audio_file, annotations_file, fs_spec=16000,
     plt.xlabel('Time (seconds)')
 
 
-def doa_plot(doa_data, plot_labels=False, figsize=(10,10)):
+def doa_plot(doa_data, plot_labels=False, plot_line_colours=False, figsize=(10,10)):
 
     unique_labels = set(doa_data[:,0])
-    colors = [plt.cm.Spectral(each)
-                for each in np.linspace(0, 1, len(unique_labels))]
+    colors = sns.color_palette("hls", len(unique_labels))
 
     ax, ax2 = setup_doa_axes(figsize)
 
@@ -69,10 +69,15 @@ def doa_plot(doa_data, plot_labels=False, figsize=(10,10)):
             phi_nan = np.insert(source[:,3], pos, np.nan)
             t_nan = np.insert(source[:,1], pos, np.nan)
 
+            if plot_line_colours:
+                c = colors[int(label)]
+            else:
+                c='black'
+
             ax.plot(t_nan, theta_nan,
-                    c='black', zorder=10, alpha=1, linewidth=3)
+                    c=c, zorder=10, alpha=1, linewidth=3)
             ax2.plot(t_nan, phi_nan,
-                    c='black', zorder=10, alpha=1, linewidth=3)
+                    c=c, zorder=10, alpha=1, linewidth=3)
 
             if plot_labels:
                 ax.text(t_nan[0], theta_nan[0]+20, str(int(label)),
@@ -136,6 +141,38 @@ def doa_scatter(xy_t, color='red', s=.1, figsize=(10,10)):
 
     ax.scatter(time_plot_points, azi_plot_points, s, color)
     ax2.scatter(time_plot_points, elev_plot_points, s, color)
+
+
+def doa_scatter_source(xy_t, labels, s=.1, figsize=(10,10)):
+# colour-coded scatter plot - requires labels output from DBSCAN
+
+    time_plot_points = xy_t[:,0]
+    azi_plot_points = np.rad2deg(xy_t[:,1])
+    elev_plot_points = -(np.rad2deg(xy_t[:,2]) - 90)
+
+    # faff about rescaling angles
+    azi_plot_points[azi_plot_points > 180] = azi_plot_points[
+        azi_plot_points > 180] - 360
+
+    ax, ax2 = setup_doa_axes(figsize)
+
+    unique_labels = set(labels)
+
+    colors = sns.color_palette("hls", len(unique_labels))
+
+    for label in unique_labels:
+        t = time_plot_points[labels==label]
+        azi = azi_plot_points[labels==label]
+        elev = elev_plot_points[labels==label]
+
+        if label == -1:
+            ax.scatter(t, azi, s/4, c='0.75')
+            ax2.scatter(t, elev, s/4, c='0.75')
+
+        else:
+            color = colors[int(label)]
+            ax.scatter(t, azi, s, [color], marker='x')
+            ax2.scatter(t, elev, s, [color], marker='x')
 
 
 def setup_doa_axes(figsize):

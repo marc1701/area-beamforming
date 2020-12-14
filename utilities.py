@@ -19,6 +19,9 @@ def cart_to_sph(cart_co_ords, return_r=False):
 
 def sph_to_cart(sph_co_ords):
 
+    if len(sph_co_ords.shape) < 2:
+        sph_co_ords = np.expand_dims(sph_co_ords, 0)
+
     # allow for lack of r value (i.e. for unit sphere)
     if sph_co_ords.shape[1] < 3:
         theta, phi = sph_co_ords[:,0], sph_co_ords[:,1]
